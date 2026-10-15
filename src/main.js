@@ -2,12 +2,13 @@ import './style.css'
 import heroImg from './assets/hero.png'
 import javascriptLogo from './assets/javascript.svg'
 import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
 
-let eldenRingAPI = "https://eldenring.fanapis.com/api/"
+let eldenRingAPI = "https://eldenring.fanapis.com/api/items"
+console.log(fetch(eldenRingAPI).json)
 
-document.querySelector('#app').innerHTML = 
 /*
+document.querySelector('#app').innerHTML = 
+
 <section id="center">
   <div class="hero">
     <img src="${heroImg}" class="base" width="170" height="179">
@@ -58,6 +59,7 @@ document.querySelector('#app').innerHTML =
 
 <div class="ticks"></div>
 <section id="spacer"></section>
-*/
+
 
 setupCounter(document.querySelector('#counter'))
+*/
