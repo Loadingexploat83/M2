@@ -1,65 +1,83 @@
 import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
 
-let eldenRingAPI = "https://eldenring.fanapis.com/api/items"
-console.log(fetch(eldenRingAPI).json)
+let eldenRingAPI = "https://eldenring.fanapis.com/api"
+const ArmorButton = document.querySelector("#ArmorButton")
+const ItemButton = document.querySelector("#ItemButton")
+const WeaponButton = document.querySelector("#WeaponButton")
+const container = document.querySelector("#objectList")
+const titulo = document.querySelector("#catalogTitle")
+const state = document.querySelector("#state")
 
-/*
-document.querySelector('#app').innerHTML = 
-
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
-
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
+ArmorButton.addEventListener('click', ()=>printLista("armors"))
+WeaponButton.addEventListener('click', ()=>printLista("weapons"))
+ItemButton.addEventListener('click', ()=>printLista("items"))
 
 
-setupCounter(document.querySelector('#counter'))
-*/
+async function printLista(query){
+  titulo.textContent = 
+  query === 'armors' ? 'Armaduras' :
+  query === 'weapons' ? 'Armas' : 'Objetos';
+  container.replaceChildren();
+  state.textContent = "Loading..."; 
+  const lista = await obtenerLista(query);
+  if (lista.length === 0){
+    state.textContent = "No se encontro ningun resultado";
+    return;
+  }
+
+  state.textContent = `${lista.length} resultados`;
+
+  lista.forEach(item => {
+    const tarjeta = document.createElement('article');
+    tarjeta.className = 'tarjeta';
+
+    const nombre = document.createElement('h3');
+    nombre.textContent = item.name ?? 'Sin nombre';
+
+
+    const image = document.createElement('img');
+    image.alt = item.name ?? '';
+    image.loading = 'lazy';
+
+    if (item.image) {
+      image.src = item.image;
+    } else {
+      image.hidden = true;
+    }
+
+    const description = document.createElement('p');
+    description.textContent =
+      item.description ?? 'Sin descripcion disponible';
+    
+    tarjeta.append(image, nombre, description);
+
+    if (item.category){
+      const category = document.createElement('p');
+      category.textContent = item.category;
+      tarjeta.append(category);
+    }
+
+    container.append(tarjeta);
+
+  });
+  console.log(lista);
+}
+
+async function obtenerLista(query) {
+  try {
+    const respuesta = await fetch(`${eldenRingAPI}/${query}?limit=20&page=0`);
+
+    // fetch NO rechaza con errores HTTP (404, 500): hay que comprobar ok
+    if (!respuesta.ok) {
+      throw new Error(`HTTP ${respuesta.status}: ${respuesta.statusText}`);
+    }
+
+    const result = await respuesta.json(); // parsea el cuerpo JSON
+    return Array.isArray(result.data) ? result.data : [];
+  } catch (error) {
+    console.error("No se pudieron cargar los usuarios:", error.message);
+    return [];
+  }
+}
+
+
