@@ -5,6 +5,7 @@ import {
   normalizarObjetos,
   filtrarObjetos,
   ordenarObjetos,
+  ordenarPorEscalado,
   convertirNumero
 } from './logic.js';
 import { mostrarObjetos } from './render.js';

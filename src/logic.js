@@ -1,3 +1,13 @@
+
+const RANGO_ESCALADO = {
+  S: 6,
+  A: 5,
+  B: 4,
+  C: 3,
+  D: 2,
+  E: 1
+};
+
 export function normalizarObjetos(datos) {
   return datos
     .map(item => ({
@@ -96,4 +106,24 @@ export function resumirObjetos(objetos) {
     pesoMedio: pesos.length ? pesoTotal / pesos.length : null,
     porCategoria
   };
+}
+
+
+export function obtenerEscalado(arma, estadistica) {
+  if (!Array.isArray(arma.scalesWith)) return 0;
+
+  const dato = arma.scalesWith.find(
+    item => item.name === estadistica
+  );
+
+  return RANGO_ESCALADO[dato?.scaling] ?? 0;
+}
+
+export function ordenarPorEscalado(armas, estadistica) {
+  return [...armas].sort((a, b) => {
+    const escaladoA = obtenerEscalado(a.datosOriginales ?? a, estadistica);
+    const escaladoB = obtenerEscalado(b.datosOriginales ?? b, estadistica);
+
+    return escaladoB - escaladoA;
+  });
 }
