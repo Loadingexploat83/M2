@@ -1,83 +1,122 @@
-import './style.css'
+import './style.css';
 
-let eldenRingAPI = "https://eldenring.fanapis.com/api"
-const ArmorButton = document.querySelector("#ArmorButton")
-const ItemButton = document.querySelector("#ItemButton")
-const WeaponButton = document.querySelector("#WeaponButton")
-const container = document.querySelector("#objectList")
-const titulo = document.querySelector("#catalogTitle")
-const state = document.querySelector("#state")
+import { obtenerLista } from './api.js';
+import {
+  normalizarObjetos,
+  filtrarObjetos,
+  ordenarObjetos,
+  convertirNumero
+} from './logic.js';
+import { mostrarObjetos } from './render.js';
 
-ArmorButton.addEventListener('click', ()=>printLista("armors"))
-WeaponButton.addEventListener('click', ()=>printLista("weapons"))
-ItemButton.addEventListener('click', ()=>printLista("items"))
+const botones = {
+  armors: document.querySelector('#ArmorButton'),
+  weapons: document.querySelector('#WeaponButton'),
+  items: document.querySelector('#ItemButton')
+};
 
+const contenedor = document.querySelector('#objectList');
+const titulo = document.querySelector('#catalogTitle');
+const estado = document.querySelector('#state');
+const filtrosArmas = document.querySelector('#weaponFilters');
+const filtrosArmaduras = document.querySelector('#armorFilters');
 
-async function printLista(query){
-  titulo.textContent = 
-  query === 'armors' ? 'Armaduras' :
-  query === 'weapons' ? 'Armas' : 'Objetos';
-  container.replaceChildren();
-  state.textContent = "Loading..."; 
-  const lista = await obtenerLista(query);
-  if (lista.length === 0){
-    state.textContent = "No se encontro ningun resultado";
-    return;
-  }
+let categoriaActual = '';
+let objetosActuales = [];
+let idPeticion = 0;
 
-  state.textContent = `${lista.length} resultados`;
+Object.entries(botones).forEach(([categoria, boton]) => {
+  boton.addEventListener('click', () => cargarCategoria(categoria));
+});
 
-  lista.forEach(item => {
-    const tarjeta = document.createElement('article');
-    tarjeta.className = 'tarjeta';
+async function cargarCategoria(categoria) {
+  categoriaActual = categoria;
+  const miPeticion = ++idPeticion;
 
-    const nombre = document.createElement('h3');
-    nombre.textContent = item.name ?? 'Sin nombre';
+  titulo.textContent = {
+    armors: 'Armaduras',
+    weapons: 'Armas',
+    items: 'Objetos'
+  }[categoria];
 
+  filtrosArmas.hidden = categoria !== 'weapons';
+  filtrosArmaduras.hidden = categoria !== 'armors';
 
-    const image = document.createElement('img');
-    image.alt = item.name ?? '';
-    image.loading = 'lazy';
+  contenedor.replaceChildren();
+  estado.textContent = 'Cargando...';
 
-    if (item.image) {
-      image.src = item.image;
-    } else {
-      image.hidden = true;
-    }
-
-    const description = document.createElement('p');
-    description.textContent =
-      item.description ?? 'Sin descripcion disponible';
-    
-    tarjeta.append(image, nombre, description);
-
-    if (item.category){
-      const category = document.createElement('p');
-      category.textContent = item.category;
-      tarjeta.append(category);
-    }
-
-    container.append(tarjeta);
-
-  });
-  console.log(lista);
-}
-
-async function obtenerLista(query) {
   try {
-    const respuesta = await fetch(`${eldenRingAPI}/${query}?limit=20&page=0`);
+    const datos = await obtenerLista(categoria);
 
-    // fetch NO rechaza con errores HTTP (404, 500): hay que comprobar ok
-    if (!respuesta.ok) {
-      throw new Error(`HTTP ${respuesta.status}: ${respuesta.statusText}`);
-    }
+    // Ignora las respuestas de peticiones anteriores.
+    if (miPeticion !== idPeticion) return;
 
-    const result = await respuesta.json(); // parsea el cuerpo JSON
-    return Array.isArray(result.data) ? result.data : [];
+    objetosActuales = normalizarObjetos(datos);
+    aplicarFiltros();
   } catch (error) {
-    console.error("No se pudieron cargar los usuarios:", error.message);
-    return [];
+    if (miPeticion !== idPeticion) return;
+
+    console.error(`Error al cargar ${categoria}:`, error);
+    objetosActuales = [];
+    contenedor.replaceChildren();
+    estado.textContent = 'No se pudo cargar la información. Inténtalo de nuevo.';
   }
 }
 
+function aplicarFiltros() {
+  let filtros = {};
+  let orden = 'name';
 
+  if (categoriaActual === 'weapons') {
+    filtros.busqueda = document.querySelector('#weaponSearch').value;
+    orden = document.querySelector('#weaponSort').value;
+  }
+
+  if (categoriaActual === 'armors') {
+    filtros.busqueda = document.querySelector('#armorSearch').value;
+    filtros.pesoMin = convertirNumero(
+      document.querySelector('#minWeight').value
+    );
+    filtros.pesoMax = convertirNumero(
+      document.querySelector('#maxWeight').value
+    );
+    orden = document.querySelector('#armorSort').value;
+  }
+
+  const filtrados = filtrarObjetos(objetosActuales, filtros);
+  const ordenados = ordenarObjetos(filtrados, orden);
+
+  mostrarObjetos(ordenados, contenedor, estado, categoriaActual);
+}
+
+document.querySelector('#applyWeaponFilters')
+  .addEventListener('click', aplicarFiltros);
+
+document.querySelector('#applyArmorFilters')
+  .addEventListener('click', aplicarFiltros);
+
+document.querySelector('#clearWeaponFilters')
+  .addEventListener('click', () => {
+    document.querySelector('#weaponSearch').value = '';
+    document.querySelector('#weaponSort').value = 'name';
+    document.querySelector('#weaponDamageType').value = '';
+    aplicarFiltros();
+  });
+
+document.querySelector('#clearArmorFilters')
+  .addEventListener('click', () => {
+    [
+      '#armorSearch',
+      '#minWeight',
+      '#maxWeight',
+      '#minDefense',
+      '#minResistance'
+    ].forEach(selector => {
+      document.querySelector(selector).value = '';
+    });
+
+    document.querySelector('#armorSort').value = 'name';
+    document.querySelector('#armorDefenseType').value = '';
+    document.querySelector('#armorResistanceType').value = '';
+    aplicarFiltros();
+  });

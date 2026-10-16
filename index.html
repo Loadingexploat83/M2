@@ -1,29 +1,162 @@
+
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="src/assets/ER_golden_order.png" />
+    <link
+      rel="icon"
+      href="src/assets/ER_golden_order.png"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script type="module" src="/src/main.js" defer></script>
-    <title> Elden Ring Kit Builder</title>
+    <title>Elden Ring Kit Builder</title>
   </head>
 
   <body>
     <div id="app">
-      <div id = "title"> Elden Ring Kit Builder</div>
-      <nav class = "menu">
-        <button id = "ItemButton"> Items </button>
-        <button id = "WeaponButton"> Armas </button>
-        <button id = "ArmorButton"> Armaduras </button>
-      </nav>
+      <header>
+        <h1 id="title">Elden Ring Kit Builder</h1>
 
-      <main id = "catalog">
-        <h2 id = "catalogTitle"> Titulo</h2>
-        <p id = "state"> Selecciona una categoria para empezar</p>
-        <section id ="objectList"></section>
+        <nav class="menu">
+          <button id="ItemButton">Items</button>
+          <button id="WeaponButton">Armas</button>
+          <button id="ArmorButton">Armaduras</button>
+        </nav>
+      </header>
 
+      <main id="catalog">
+        <h2 id="catalogTitle">Explora las Tierras Intermedias</h2>
+        <p id="state">Selecciona una categoría para empezar</p>
+
+        <!-- FILTROS DE ARMAS -->
+        <section id="weaponFilters" class="filters" hidden>
+          <h3>Filtros de armas</h3>
+
+          <label for="weaponSearch">Buscar arma</label>
+          <input
+            id="weaponSearch"
+            type="search"
+            placeholder="Nombre del arma..."
+          />
+
+          <label for="weaponSort">Ordenar por</label>
+          <select id="weaponSort">
+            <option value="name">Nombre</option>
+            <option value="weight-desc">Peso: mayor a menor</option>
+            <option value="weight-asc">Peso: menor a mayor</option>
+          </select>
+
+          <label for="weaponDamageType">Tipo de daño</label>
+          <select id="weaponDamageType">
+            <option value="">Todos los tipos</option>
+            <option value="Phy">Físico</option>
+            <option value="Strike">Golpe</option>
+            <option value="Slash">Corte</option>
+            <option value="Pierce">Perforación</option>
+            <option value="Mag">Magia</option>
+            <option value="Fire">Fuego</option>
+            <option value="Ligt">Rayo</option>
+            <option value="Holy">Sagrado</option>
+          </select>
+
+          <button id="applyWeaponFilters" type="button">
+            Aplicar filtros
+          </button>
+
+          <button id="clearWeaponFilters" type="button">
+            Limpiar filtros
+          </button>
+        </section>
+
+        <!-- FILTROS DE ARMADURAS -->
+        <section id="armorFilters" class="filters" hidden>
+          <h3>Filtros de armaduras</h3>
+
+          <label for="armorSearch">Buscar armadura</label>
+          <input
+            id="armorSearch"
+            type="search"
+            placeholder="Nombre de la armadura..."
+          />
+
+          <label for="armorSort">Ordenar por</label>
+          <select id="armorSort">
+            <option value="name">Nombre</option>
+            <option value="weight-desc">Peso: mayor a menor</option>
+            <option value="weight-asc">Peso: menor a mayor</option>
+          </select>
+
+          <label for="minWeight">Peso mínimo</label>
+          <input
+            id="minWeight"
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="Sin mínimo"
+          />
+
+          <label for="maxWeight">Peso máximo</label>
+          <input
+            id="maxWeight"
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="Sin máximo"
+          />
+
+          <label for="armorDefenseType">Tipo de defensa</label>
+          <select id="armorDefenseType">
+            <option value="">Todas las defensas</option>
+            <option value="Phy">Físico</option>
+            <option value="Strike">Golpe</option>
+            <option value="Slash">Corte</option>
+            <option value="Pierce">Perforación</option>
+            <option value="Magic">Magia</option>
+            <option value="Fire">Fuego</option>
+            <option value="Ligt">Rayo</option>
+            <option value="Holy">Sagrado</option>
+          </select>
+
+          <label for="minDefense">Defensa mínima</label>
+          <input
+            id="minDefense"
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="Sin mínimo"
+          />
+
+          <label for="armorResistanceType">Tipo de resistencia</label>
+          <select id="armorResistanceType">
+            <option value="">Todas las resistencias</option>
+            <option value="Immunity">Inmunidad</option>
+            <option value="Robustness">Robustez</option>
+            <option value="Focus">Concentración</option>
+            <option value="Vitality">Vitalidad</option>
+            <option value="Poise">Equilibrio</option>
+          </select>
+
+          <label for="minResistance">Resistencia mínima</label>
+          <input
+            id="minResistance"
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="Sin mínimo"
+          />
+
+          <button id="applyArmorFilters" type="button">
+            Aplicar filtros
+          </button>
+
+          <button id="clearArmorFilters" type="button">
+            Limpiar filtros
+          </button>
+        </section>
+
+        <!-- CATÁLOGO -->
+        <section id="objectList"></section>
       </main>
-
     </div>
   </body>
 </html>

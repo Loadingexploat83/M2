@@ -166,3 +166,41 @@ button:focus-visible {
     padding: 10px 14px;
   }
 }
+
+
+#filters {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 200px), 1fr)
+  );
+  gap: 12px;
+  padding: 18px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: left;
+}
+
+#filters label {
+  align-self: end;
+  font-size: 14px;
+  color: var(--text);
+}
+
+#filters input,
+#filters select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #11110f;
+  color: var(--text-h);
+  font: inherit;
+}
+
+#filters button {
+  align-self: end;
+}
