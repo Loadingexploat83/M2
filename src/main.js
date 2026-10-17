@@ -69,38 +69,70 @@ function aplicarFiltros() {
   let orden = 'name';
 
   if (categoriaActual === 'weapons') {
-    filtros.busqueda = document.querySelector('#weaponSearch').value;
+    filtros.busqueda =
+      document.querySelector('#weaponSearch').value;
+
+    filtros.tipoDanio =
+      document.querySelector('#weaponDamageType').value;
+
     orden = document.querySelector('#weaponSort').value;
   }
 
   if (categoriaActual === 'armors') {
-    filtros.busqueda = document.querySelector('#armorSearch').value;
+    filtros.busqueda =
+      document.querySelector('#armorSearch').value;
+
     filtros.pesoMin = convertirNumero(
       document.querySelector('#minWeight').value
     );
+
     filtros.pesoMax = convertirNumero(
       document.querySelector('#maxWeight').value
     );
+
     orden = document.querySelector('#armorSort').value;
   }
 
+  // Primero aplicamos los filtros.
   const filtrados = filtrarObjetos(objetosActuales, filtros);
-  const ordenados = ordenarObjetos(filtrados, orden);
 
-  mostrarObjetos(ordenados, contenedor, estado, categoriaActual);
+  // Después ordenamos los resultados.
+  let ordenados = ordenarObjetos(filtrados, orden);
+
+  // Si se ha elegido una estadística, priorizamos ese escalado.
+  if (categoriaActual === 'weapons') {
+    const escalado =
+      document.querySelector('#weaponScaling').value;
+
+    if (escalado) {
+      ordenados = ordenarPorEscalado(ordenados, escalado);
+    }
+  }
+
+  mostrarObjetos(
+    ordenados,
+    contenedor,
+    estado,
+    categoriaActual
+  );
 }
 
 document.querySelector('#applyWeaponFilters')
   .addEventListener('click', aplicarFiltros);
+document.querySelector('#weaponDamageType')
+  .addEventListener('change', aplicarFiltros);
 
 document.querySelector('#applyArmorFilters')
   .addEventListener('click', aplicarFiltros);
+document.querySelector('#weaponScaling')
+  .addEventListener('change', aplicarFiltros);
 
 document.querySelector('#clearWeaponFilters')
   .addEventListener('click', () => {
     document.querySelector('#weaponSearch').value = '';
     document.querySelector('#weaponSort').value = 'name';
     document.querySelector('#weaponDamageType').value = '';
+    document.querySelector('#weaponScaling').value = '';
     aplicarFiltros();
   });
 

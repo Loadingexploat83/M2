@@ -71,6 +71,17 @@ export function filtrarObjetos(objetos, filtros = {}) {
       return false;
     }
 
+    if (filtros.tipoDanio) {
+      const tieneDanio = item.ataque.some(stat =>
+        stat.name === filtros.tipoDanio &&
+        Number(stat.amount) > 0
+      );
+
+      if (!tieneDanio) return false;
+    }
+
+    return true;
+
     return true;
   });
 }
