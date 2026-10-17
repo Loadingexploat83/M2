@@ -204,3 +204,32 @@ button:focus-visible {
 #filters button {
   align-self: end;
 }
+
+
+.estadisticas {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.estadisticas h4 {
+  margin: 0 0 0.6rem;
+  color: var(--accent);
+}
+
+.estadisticas ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.8rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.estadisticas li {
+  color: var(--text);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
