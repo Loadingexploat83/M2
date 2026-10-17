@@ -1,130 +1,135 @@
+function crear(tag, clase, texto) {
+  const elemento = document.createElement(tag);
+  if (clase) elemento.className = clase;
+  if (texto !== undefined) elemento.textContent = texto;
+  return elemento;
+}
 
-export function mostrarObjetos(lista, contenedor, estado, categoria) {
+export function mostrarCatalogo(lista, contenedor, categoria, onEquipar) {
   contenedor.replaceChildren();
-  estado.textContent = `${lista.length} resultados`;
 
-  if (lista.length === 0) {
-    estado.textContent = 'No hay resultados que coincidan con los filtros.';
+  if (!lista.length) {
+    contenedor.append(crear('p', 'empty-state', 'No hay objetos que coincidan con la búsqueda.'));
     return;
   }
 
-  const fragmento = document.createDocumentFragment();
+  const fragment = document.createDocumentFragment();
 
   lista.forEach(item => {
-    const tarjeta = document.createElement('article');
-    tarjeta.className = 'tarjeta';
-
-    const original = item.datosOriginales ?? item;
-
-    // Imagen
-    const imagen = document.createElement('img');
-    imagen.alt = item.nombre;
-    imagen.loading = 'lazy';
-
+    const card = crear('article', 'item-card');
     if (item.imagen) {
-      imagen.src = item.imagen;
-      imagen.onerror = () => {
-        imagen.hidden = true;
-      };
-    } else {
-      imagen.hidden = true;
+      const img = crear('img', 'item-image');
+      img.src = item.imagen;
+      img.alt = item.nombre;
+      img.loading = 'lazy';
+      img.onerror = () => { img.hidden = true; };
+      card.append(img);
     }
 
-    // Nombre
-    const nombre = document.createElement('h3');
-    nombre.textContent = item.nombre;
+    const body = crear('div', 'item-card-body');
+    body.append(crear('p', 'item-kind', categoria === 'weapons' ? 'ARMA' : 'ARMADURA'));
+    body.append(crear('h3', '', item.nombre));
+    body.append(crear('p', 'item-description', item.descripcion));
+    body.append(crear('p', 'item-weight', `Peso: ${item.peso ?? 'No disponible'}`));
 
-    // Descripción
-    const descripcion = document.createElement('p');
-    descripcion.textContent = item.descripcion;
-
-    tarjeta.append(imagen, nombre, descripcion);
-
-    // Peso
-    if (item.peso !== null) {
-      const peso = document.createElement('p');
-      peso.textContent = `Peso: ${item.peso}`;
-      tarjeta.append(peso);
+    const stats = categoria === 'weapons' ? item.ataque : item.negacionDanio;
+    if (stats.length) {
+      const preview = stats.slice(0, 4).map(s => `${s.name} ${s.amount}`).join(' · ');
+      body.append(crear('p', 'item-preview', preview));
     }
 
-    // Daños y defensa de armas
-    if (categoria === 'weapons') {
-      agregarEstadisticas(
-        tarjeta,
-        'Daño de ataque',
-        original.attack
-      );
-
-      agregarEstadisticas(
-        tarjeta,
-        'Defensa del arma',
-        original.defence
-      );
-
-      agregarEstadisticas(
-        tarjeta,
-        'Escalado',
-        (original.scalesWith ?? []).map(stat => ({
-          name: stat.name,
-          amount: stat.scaling
-        }))
-      );
-
-      agregarEstadisticas(
-        tarjeta,
-        'Requisitos',
-        (original.requiredAttributes ?? []).map(stat => ({
-          name: stat.name,
-          amount: stat.amount
-        }))
-      );
-    }
-
-    // Defensas y resistencias de armaduras
-    if (categoria === 'armors') {
-      agregarEstadisticas(
-        tarjeta,
-        'Negación de daño',
-        original.dmgNegation
-      );
-
-      agregarEstadisticas(
-        tarjeta,
-        'Resistencias',
-        original.resistance
-      );
-    }
-
-    // Categoría
-    if (item.categoria) {
-      const categoriaTexto = document.createElement('p');
-      categoriaTexto.textContent = `Categoría: ${item.categoria}`;
-      tarjeta.append(categoriaTexto);
-    }
-
-    fragmento.append(tarjeta);
+    const button = crear('button', 'button button-primary', 'Equipar');
+    button.type = 'button';
+    button.addEventListener('click', () => onEquipar(item));
+    body.append(button);
+    card.append(body);
+    fragment.append(card);
   });
 
-  contenedor.append(fragmento);
+  contenedor.append(fragment);
 }
 
-function agregarEstadisticas(tarjeta, titulo, datos) {
-  if (!Array.isArray(datos) || datos.length === 0) return;
+export function mostrarRanuras(equipamiento, contenedor, onQuitar) {
+  const ranuras = [
+    ['arma', 'Arma'],
+    ['head', 'Casco'],
+    ['chest', 'Torso'],
+    ['arms', 'Guantes'],
+    ['legs', 'Grebas']
+  ];
+  contenedor.replaceChildren();
 
-  const seccion = document.createElement('div');
-  seccion.className = 'estadisticas';
+  ranuras.forEach(([clave, etiqueta]) => {
+    const slot = crear('div', 'equipment-slot');
+    const info = crear('div', 'slot-info');
+    info.append(crear('span', 'slot-label', etiqueta));
+    info.append(crear('strong', '', equipamiento[clave]?.nombre ?? 'Vacío'));
+    if (equipamiento[clave]) {
+      info.append(crear('small', '', `Peso: ${equipamiento[clave].peso ?? 0}`));
+    }
 
-  const subtitulo = document.createElement('h4');
-  subtitulo.textContent = titulo;
-
-  const lista = document.createElement('ul');
-
-  datos.forEach(stat => {
-    const elemento = document.createElement('li');
-    elemento.textContent = `${stat.name}: ${stat.amount}`;
-    lista.append(elemento);
+    slot.append(info);
+    if (equipamiento[clave]) {
+      const remove = crear('button', 'button button-small', 'Quitar');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Quitar ${etiqueta}`);
+      remove.addEventListener('click', () => onQuitar(clave));
+      slot.append(remove);
+    }
+    contenedor.append(slot);
   });
+}
 
-  seccion.append(subtitulo, lista);
-  tarjeta.append(seccion);
+export function mostrarStatsCombinadas(resumen, contenedor) {
+  contenedor.replaceChildren();
+  const grupos = [
+    ['Negación de daño', resumen.negacionDanio],
+    ['Resistencias', resumen.resistencia]
+  ];
+
+  grupos.forEach(([titulo, stats]) => {
+    const section = crear('div', 'combined-group');
+    section.append(crear('h3', '', titulo));
+    const list = crear('dl', 'stats-list');
+    const entries = Object.entries(stats);
+
+    if (!entries.length) {
+      section.append(crear('p', 'muted', 'Sin estadísticas disponibles.'));
+    } else {
+      entries.forEach(([name, amount]) => {
+        list.append(crear('dt', '', name));
+        list.append(crear('dd', '', amount.toFixed(1)));
+      });
+      section.append(list);
+    }
+    contenedor.append(section);
+  });
+}
+
+export function mostrarBuildsGuardadas(builds, contenedor, { onCargar, onEliminar }) {
+  contenedor.replaceChildren();
+  if (!builds.length) {
+    contenedor.append(crear('p', 'muted', 'Todavía no has guardado ninguna build.'));
+    return;
+  }
+
+  builds.forEach(build => {
+    const row = crear('div', 'saved-build');
+    const info = crear('div', 'saved-build-info');
+    info.append(crear('strong', '', build.nombre));
+    info.append(crear('small', '', new Date(build.actualizada).toLocaleString()));
+    const actions = crear('div', 'saved-build-actions');
+
+    const load = crear('button', 'button button-small', 'Cargar');
+    load.type = 'button';
+    load.addEventListener('click', () => onCargar(build));
+
+    const remove = crear('button', 'button button-small button-danger', 'Eliminar');
+    remove.type = 'button';
+    remove.addEventListener('click', () => onEliminar(build.id));
+
+    actions.append(load, remove);
+    row.append(info, actions);
+    contenedor.append(row);
+  });
 }

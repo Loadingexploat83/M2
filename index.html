@@ -1,168 +1,123 @@
-
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link
-      rel="icon"
-      href="src/assets/ER_golden_order.png"
-    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script type="module" src="/src/main.js" defer></script>
+    <meta name="theme-color" content="#171611" />
     <title>Elden Ring Kit Builder</title>
+    <script type="module" src="/src/main.js" defer></script>
   </head>
-
   <body>
     <div id="app">
-      <header>
-        <h1 id="title">Elden Ring Kit Builder</h1>
-
-        <nav class="menu">
-          <button id="ItemButton">Items</button>
-          <button id="WeaponButton">Armas</button>
-          <button id="ArmorButton">Armaduras</button>
-        </nav>
+      <header class="site-header">
+        <p class="eyebrow">THE LANDS BETWEEN</p>
+        <h1>Elden Ring <span>Kit Builder</span></h1>
+        <p class="intro">Diseña tu equipamiento, revisa sus estadísticas y guarda tus builds.</p>
       </header>
 
-      <main id="catalog">
-        <h2 id="catalogTitle">Explora las Tierras Intermedias</h2>
-        <p id="state">Selecciona una categoría para empezar</p>
+      <main>
+        <section class="panel catalog-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CATÁLOGO</p>
+              <h2>Equipamiento</h2>
+            </div>
+            <span id="catalogCount" class="muted">Selecciona una categoría</span>
+          </div>
 
-        <!-- FILTROS DE ARMAS -->
-        <section id="weaponFilters" class="filters" hidden>
-          <h3>Filtros de armas</h3>
+          <nav class="tabs" aria-label="Categorías de objetos">
+            <button type="button" class="tab active" data-category="weapons">Armas</button>
+            <button type="button" class="tab" data-category="armors">Armaduras</button>
+          </nav>
 
-          <label for="weaponSearch">Buscar arma</label>
-          <input
-            id="weaponSearch"
-            type="search"
-            placeholder="Nombre del arma..."
-          />
+          <div class="filters">
+            <label class="field field-grow">
+              <span>Buscar</span>
+              <input id="catalogSearch" type="search" placeholder="Nombre del objeto..." />
+            </label>
+            <label class="field">
+              <span>Ordenar</span>
+              <select id="catalogSort">
+                <option value="name">Nombre</option>
+                <option value="weight-asc">Menor peso</option>
+                <option value="weight-desc">Mayor peso</option>
+              </select>
+            </label>
+          </div>
 
-          <label for="weaponSort">Ordenar por</label>
-          <select id="weaponSort">
-            <option value="name">Nombre</option>
-            <option value="weight-desc">Peso: mayor a menor</option>
-            <option value="weight-asc">Peso: menor a mayor</option>
-          </select>
-          <label for="weaponScaling">Ordenar por escalado:</label>
-          <select id="weaponScaling">
-            <option value="">Nombre</option>
-            <option value="Str">Fuerza</option>
-            <option value="Dex">Destreza</option>
-            <option value="Int">Inteligencia</option>
-            <option value="Fai">Fe</option>
-            <option value="Arc">Arcano</option>
-          </select>
-
-          <label for="weaponDamageType">Tipo de daño</label>
-          <select id="weaponDamageType">
-              <option value="">Todos los tipos</option>
-              <option value="Phy">Físico</option>
-              <option value="Mag">Magia</option>
-              <option value="Fire">Fuego</option>
-              <option value="Ligt">Rayo</option>
-              <option value="Holy">Sagrado</option>
-          </select>
-
-          <button id="applyWeaponFilters" type="button">
-            Aplicar filtros
-          </button>
-
-          <button id="clearWeaponFilters" type="button">
-            Limpiar filtros
-          </button>
+          <p id="catalogState" class="status" role="status" aria-live="polite">Cargando catálogo...</p>
+          <div id="catalogList" class="catalog-grid"></div>
         </section>
 
-        <!-- FILTROS DE ARMADURAS -->
-        <section id="armorFilters" class="filters" hidden>
-          <h3>Filtros de armaduras</h3>
+        <aside class="builder-column">
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">CONFIGURACIÓN</p>
+                <h2>Mi build</h2>
+              </div>
+            </div>
 
-          <label for="armorSearch">Buscar armadura</label>
-          <input
-            id="armorSearch"
-            type="search"
-            placeholder="Nombre de la armadura..."
-          />
+            <label class="field">
+              <span>Nombre de la build</span>
+              <input id="buildName" type="text" maxlength="60" placeholder="Ej. Caballero de Leyndell" />
+            </label>
 
-          <label for="armorSort">Ordenar por</label>
-          <select id="armorSort">
-            <option value="name">Nombre</option>
-            <option value="weight-desc">Peso: mayor a menor</option>
-            <option value="weight-asc">Peso: menor a mayor</option>
-          </select>
+            <div id="equipmentSlots" class="equipment-slots"></div>
 
-          <label for="minWeight">Peso mínimo</label>
-          <input
-            id="minWeight"
-            type="number"
-            min="0"
-            step="0.1"
-            placeholder="Sin mínimo"
-          />
+            <div class="stats-summary">
+              <div class="stat-tile">
+                <span>Peso equipado</span>
+                <strong id="totalWeight">0</strong>
+              </div>
+              <div class="stat-tile">
+                <span>Piezas equipadas</span>
+                <strong id="equippedCount">0 / 5</strong>
+              </div>
+            </div>
 
-          <label for="maxWeight">Peso máximo</label>
-          <input
-            id="maxWeight"
-            type="number"
-            min="0"
-            step="0.1"
-            placeholder="Sin máximo"
-          />
+            <details class="details-panel">
+              <summary>Defensa y resistencias del conjunto</summary>
+              <div id="combinedStats" class="combined-stats"></div>
+              <p class="note">Suma orientativa de las estadísticas mostradas por la API; no representa la fórmula completa de defensa del juego.</p>
+            </details>
+          </section>
 
-          <label for="armorDefenseType">Tipo de defensa</label>
-          <select id="armorDefenseType">
-            <option value="">Todas las defensas</option>
-            <option value="Phy">Físico</option>
-            <option value="Strike">Golpe</option>
-            <option value="Slash">Corte</option>
-            <option value="Pierce">Perforación</option>
-            <option value="Magic">Magia</option>
-            <option value="Fire">Fuego</option>
-            <option value="Ligt">Rayo</option>
-            <option value="Holy">Sagrado</option>
-          </select>
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">ATRIBUTOS DEL PERSONAJE</p>
+                <h2>Requisitos del arma</h2>
+              </div>
+            </div>
+            <div id="attributeInputs" class="attribute-grid"></div>
+            <p id="requirementsStatus" class="status">Equipa un arma para comprobar sus requisitos.</p>
+          </section>
 
-          <label for="minDefense">Defensa mínima</label>
-          <input
-            id="minDefense"
-            type="number"
-            min="0"
-            step="0.1"
-            placeholder="Sin mínimo"
-          />
-
-          <label for="armorResistanceType">Tipo de resistencia</label>
-          <select id="armorResistanceType">
-            <option value="">Todas las resistencias</option>
-            <option value="Immunity">Inmunidad</option>
-            <option value="Robustness">Robustez</option>
-            <option value="Focus">Concentración</option>
-            <option value="Vitality">Vitalidad</option>
-            <option value="Poise">Equilibrio</option>
-          </select>
-
-          <label for="minResistance">Resistencia mínima</label>
-          <input
-            id="minResistance"
-            type="number"
-            min="0"
-            step="0.1"
-            placeholder="Sin mínimo"
-          />
-
-          <button id="applyArmorFilters" type="button">
-            Aplicar filtros
-          </button>
-
-          <button id="clearArmorFilters" type="button">
-            Limpiar filtros
-          </button>
-        </section>
-
-        <!-- CATÁLOGO -->
-        <section id="objectList"></section>
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">TUS CONFIGURACIONES</p>
+                <h2>Builds guardadas</h2>
+              </div>
+            </div>
+            <div class="save-actions">
+              <button id="saveBuild" type="button" class="button button-primary">Guardar build</button>
+              <button id="exportBuild" type="button" class="button">Exportar JSON</button>
+              <label class="button file-button">
+                Importar JSON
+                <input id="importBuild" type="file" accept="application/json,.json" />
+              </label>
+            </div>
+            <p id="saveState" class="status" role="status" aria-live="polite"></p>
+            <div id="savedBuilds" class="saved-builds"></div>
+          </section>
+        </aside>
       </main>
+
+      <footer>
+        <p>Fan project no oficial. Elden Ring y sus recursos pertenecen a sus respectivos propietarios.</p>
+      </footer>
     </div>
   </body>
 </html>

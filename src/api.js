@@ -1,34 +1,64 @@
 const API_URL = 'https://eldenring.fanapis.com/api';
 const CACHE_PREFIX = 'eldenring-cache-';
-const CACHE_TIME = 1000 * 60 * 60; // 1 hora
+const CACHE_TIME = 1000 * 60 * 60;
 
 export async function obtenerLista(categoria) {
-  const todosLosObjetos = [];
-  const limite = 100;
-  let pagina = 0;
-  let hayMas = true;
+  const cacheKey = `${CACHE_PREFIX}${categoria}`;
 
-  while (hayMas) {
-    const respuesta = await fetch(
-      `${API_URL}/${categoria}?limit=${limite}&page=${pagina}`
-    );
-
-    if (!respuesta.ok) {
-      throw new Error(`Error HTTP ${respuesta.status}`);
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (raw) {
+      const cache = JSON.parse(raw);
+      if (
+        Array.isArray(cache.datos) &&
+        Number.isFinite(cache.timestamp) &&
+        Date.now() - cache.timestamp < CACHE_TIME
+      ) {
+        return cache.datos;
+      }
     }
-
-    const resultado = await respuesta.json();
-
-    if (!Array.isArray(resultado.data)) {
-      throw new Error('La respuesta de la API no es válida');
-    }
-
-    todosLosObjetos.push(...resultado.data);
-
-    // Si llegan menos objetos que el límite, hemos llegado al final.
-    hayMas = resultado.data.length === limite;
-    pagina++;
+  } catch (error) {
+    console.warn('No se pudo leer la caché:', error);
   }
 
-  return todosLosObjetos;
+  const todos = [];
+  const limit = 100;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = await fetch(
+      `${API_URL}/${encodeURIComponent(categoria)}?limit=${limit}&page=${page}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP ${response.status} al cargar ${categoria}`);
+    }
+
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error('La API devolvió JSON no válido');
+    }
+
+    if (!result || !Array.isArray(result.data)) {
+      throw new Error('La respuesta de la API no contiene un array data');
+    }
+
+    todos.push(...result.data);
+    hasMore = result.data.length === limit;
+    page += 1;
+  }
+
+  try {
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({ timestamp: Date.now(), datos: todos })
+    );
+  } catch (error) {
+    console.warn('No se pudo guardar la caché:', error);
+  }
+
+  return todos;
 }
