@@ -4,7 +4,6 @@ import {
   normalizarObjetos,
   filtrarObjetos,
   ordenarObjetos,
-  ordenarPorEscalado,
   convertirNumero,
   resumirEquipamiento,
   comprobarRequisitos
@@ -41,16 +40,89 @@ const ATTRIBUTES = [
 ];
 
 const STORAGE_KEY = 'eldenring-saved-builds-v1';
+const SLOT_KEYS = ['arma', 'head', 'chest', 'arms', 'legs'];
+const DEFAULT_ATTRIBUTES = { Str: 10, Dex: 10, Int: 10, Fai: 10, Arc: 10 };
 
 let categoriaActual = 'weapons';
 let catalogo = { weapons: [], armors: [] };
-let cargando = false;
 let peticionId = 0;
 let build = {
   nombre: '',
   equipamiento: { arma: null, head: null, chest: null, arms: null, legs: null },
-  atributos: { Str: 10, Dex: 10, Int: 10, Fai: 10, Arc: 10 }
+  atributos: { ...DEFAULT_ATTRIBUTES }
 };
+
+function normalizarStatsGuardadas(stats) {
+  if (!Array.isArray(stats)) return [];
+  return stats
+    .filter(stat => stat && typeof stat.name === 'string')
+    .map(stat => ({
+      name: stat.name,
+      amount: convertirNumero(stat.amount) ?? 0
+    }));
+}
+
+function normalizarObjetoGuardado(item, tipo) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+  if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
+
+  const peso = convertirNumero(item.peso);
+  const escalado = Array.isArray(item.escalado)
+    ? item.escalado
+        .filter(stat => stat && typeof stat.name === 'string')
+        .map(stat => ({ name: stat.name, scaling: stat.scaling }))
+    : [];
+
+  return {
+    id: typeof item.id === 'string' || typeof item.id === 'number'
+      ? item.id
+      : item.nombre.trim(),
+    nombre: item.nombre.trim(),
+    imagen: typeof item.imagen === 'string' ? item.imagen : '',
+    descripcion: typeof item.descripcion === 'string'
+      ? item.descripcion
+      : 'Sin descripción disponible.',
+    peso: peso !== null && peso >= 0 ? peso : null,
+    categoria: typeof item.categoria === 'string' ? item.categoria : 'Sin categoría',
+    ataque: normalizarStatsGuardadas(item.ataque),
+    defensaArma: normalizarStatsGuardadas(item.defensaArma),
+    negacionDanio: normalizarStatsGuardadas(item.negacionDanio),
+    resistencia: normalizarStatsGuardadas(item.resistencia),
+    escalado,
+    requisitos: normalizarStatsGuardadas(item.requisitos),
+    tipo
+  };
+}
+
+function normalizarBuild(datos) {
+  if (!datos || typeof datos !== 'object' || Array.isArray(datos)) return null;
+  const equipo = datos.equipamiento;
+  if (!equipo || typeof equipo !== 'object' || Array.isArray(equipo)) return null;
+
+  const equipamiento = {
+    arma: normalizarObjetoGuardado(equipo.arma, 'weapons'),
+    head: normalizarObjetoGuardado(equipo.head, 'armors'),
+    chest: normalizarObjetoGuardado(equipo.chest, 'armors'),
+    arms: normalizarObjetoGuardado(equipo.arms, 'armors'),
+    legs: normalizarObjetoGuardado(equipo.legs, 'armors')
+  };
+
+  const atributosEntrada = datos.atributos && typeof datos.atributos === 'object'
+    ? datos.atributos
+    : {};
+  const atributos = Object.fromEntries(
+    ATTRIBUTES.map(([key]) => {
+      const value = convertirNumero(atributosEntrada[key]);
+      return [key, Math.min(99, Math.max(1, Math.trunc(value ?? DEFAULT_ATTRIBUTES[key])))];
+    })
+  );
+
+  return {
+    nombre: typeof datos.nombre === 'string' ? datos.nombre.slice(0, 60) : '',
+    equipamiento,
+    atributos
+  };
+}
 
 function construirAtributos() {
   const container = $('#attributeInputs');
@@ -70,7 +142,7 @@ function construirAtributos() {
     input.value = String(build.atributos[key]);
     input.dataset.attribute = key;
     input.addEventListener('change', () => {
-      const value = Math.min(99, Math.max(1, Number(input.value) || 1));
+      const value = Math.min(99, Math.max(1, Math.trunc(Number(input.value) || 1)));
       build.atributos[key] = value;
       input.value = String(value);
       actualizarRequisitos();
@@ -115,13 +187,37 @@ function asignarObjeto(item) {
   if (item.tipo === 'weapons' || categoriaActual === 'weapons') {
     build.equipamiento.arma = item;
   } else {
-    const category = (item.categoria || '').toLowerCase();
+    const category = (item.categoria || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
     let slot = 'chest';
 
-    if (category.includes('head') || category.includes('helm')) slot = 'head';
-    else if (category.includes('arm') || category.includes('gauntlet') || category.includes('glove')) slot = 'arms';
-    else if (category.includes('leg') || category.includes('greave')) slot = 'legs';
-    else if (category.includes('chest') || category.includes('body')) slot = 'chest';
+    if (category.includes('head') || category.includes('helm')) {
+      slot = 'head';
+    } else if (
+      category.includes('leg') ||
+      category.includes('greave') ||
+      category.includes('trouser') ||
+      category.includes('pants')
+    ) {
+      slot = 'legs';
+    } else if (
+      category.includes('chest') ||
+      category.includes('torso') ||
+      category.includes('body')
+    ) {
+      slot = 'chest';
+    } else if (
+      category.includes('gauntlet') ||
+      category.includes('glove') ||
+      category.includes('hand armor') ||
+      category === 'arms'
+    ) {
+      slot = 'arms';
+    }
 
     build.equipamiento[slot] = item;
   }
@@ -130,28 +226,22 @@ function asignarObjeto(item) {
 }
 
 function quitarPieza(slot) {
+  if (!SLOT_KEYS.includes(slot)) return;
   build.equipamiento[slot] = null;
   renderizarBuild();
 }
 
-function filtrosActuales() {
-  return {
-    busqueda: searchInput.value,
-    ...(categoriaActual === 'weapons'
-      ? { tipoDanio: '' }
-      : {})
-  };
-}
-
 function renderizarCatalogo() {
   const objetos = catalogo[categoriaActual] ?? [];
-  let lista = filtrarObjetos(objetos, filtrosActuales());
-  lista = ordenarObjetos(lista, sortSelect.value);
+  const listaFiltrada = filtrarObjetos(objetos, { busqueda: searchInput.value });
+  const lista = ordenarObjetos(listaFiltrada, sortSelect.value);
   catalogCount.textContent = `${lista.length} objetos`;
   mostrarCatalogo(lista, catalogList, categoriaActual, asignarObjeto);
 }
 
 async function cargarCategoria(categoria) {
+  if (!Object.hasOwn(catalogo, categoria)) return;
+
   categoriaActual = categoria;
   const id = ++peticionId;
   document.querySelectorAll('[data-category]').forEach(button => {
@@ -159,23 +249,28 @@ async function cargarCategoria(categoria) {
   });
 
   catalogState.textContent = 'Cargando catálogo…';
+  catalogState.classList.add('status-loading');
   catalogList.replaceChildren();
 
   if (catalogo[categoria].length) {
     catalogState.textContent = 'Catálogo cargado desde la memoria de la sesión.';
+    catalogState.classList.remove('status-loading');
     renderizarCatalogo();
     return;
   }
 
-  cargando = true;
   try {
     const datos = await obtenerLista(categoria);
     if (id !== peticionId) return;
-    catalogo[categoria] = normalizarObjetos(datos).filter(item => item.tipo === categoria);
+
+    catalogo[categoria] = normalizarObjetos(datos)
+      .filter(item => item.tipo === categoria);
+
     catalogState.textContent = `Catálogo de ${categoria === 'weapons' ? 'armas' : 'armaduras'} listo.`;
     renderizarCatalogo();
   } catch (error) {
     if (id !== peticionId) return;
+
     catalogState.textContent = `${error.message}. Comprueba la conexión y vuelve a intentarlo.`;
     const retry = document.createElement('button');
     retry.className = 'button button-primary';
@@ -184,15 +279,32 @@ async function cargarCategoria(categoria) {
     retry.addEventListener('click', () => cargarCategoria(categoria));
     catalogList.append(retry);
   } finally {
-    if (id === peticionId) cargando = false;
+    if (id === peticionId) catalogState.classList.remove('status-loading');
   }
 }
 
 function leerBuildsGuardadas() {
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return Array.isArray(data) ? data : [];
-  } catch {
+    if (!Array.isArray(data)) return [];
+
+    return data.flatMap(item => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+      if (typeof item.id !== 'string' && typeof item.id !== 'number') return [];
+
+      const buildNormalizada = normalizarBuild(item);
+      if (!buildNormalizada) return [];
+
+      return [{
+        id: String(item.id),
+        nombre: buildNormalizada.nombre || 'Build sin nombre',
+        actualizada: typeof item.actualizada === 'string' ? item.actualizada : '',
+        equipamiento: buildNormalizada.equipamiento,
+        atributos: buildNormalizada.atributos
+      }];
+    });
+  } catch (error) {
+    console.warn('No se pudieron leer las builds guardadas:', error);
     return [];
   }
 }
@@ -203,7 +315,7 @@ function guardarBuild() {
 
   const builds = leerBuildsGuardadas();
   const nueva = {
-    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     nombre,
     actualizada: new Date().toISOString(),
     equipamiento: build.equipamiento,
@@ -222,29 +334,29 @@ function guardarBuild() {
 }
 
 function cargarBuildGuardada(guardada) {
-  build = {
-    nombre: guardada.nombre ?? '',
-    equipamiento: {
-      arma: guardada.equipamiento?.arma ?? null,
-      head: guardada.equipamiento?.head ?? null,
-      chest: guardada.equipamiento?.chest ?? null,
-      arms: guardada.equipamiento?.arms ?? null,
-      legs: guardada.equipamiento?.legs ?? null
-    },
-    atributos: { ...{ Str: 10, Dex: 10, Int: 10, Fai: 10, Arc: 10 }, ...(guardada.atributos ?? {}) }
-  };
+  const normalizada = normalizarBuild(guardada);
+  if (!normalizada) {
+    saveState.textContent = 'No se pudo cargar: la estructura de la build no es válida.';
+    return;
+  }
 
+  build = normalizada;
   buildNameInput.value = build.nombre;
   construirAtributos();
   renderizarBuild();
-  saveState.textContent = `Cargada: ${build.nombre}`;
+  saveState.textContent = `Cargada: ${build.nombre || 'Build sin nombre'}`;
 }
 
 function eliminarBuild(id) {
-  const builds = leerBuildsGuardadas().filter(item => item.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(builds));
-  renderizarBuildsGuardadas();
-  saveState.textContent = 'Build eliminada.';
+  try {
+    const builds = leerBuildsGuardadas().filter(item => item.id !== String(id));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(builds));
+    renderizarBuildsGuardadas();
+    saveState.textContent = 'Build eliminada.';
+  } catch (error) {
+    saveState.textContent = 'No se pudo eliminar la build. Comprueba el almacenamiento del navegador.';
+    console.error(error);
+  }
 }
 
 function renderizarBuildsGuardadas() {
@@ -272,7 +384,7 @@ function exportarBuild() {
   anchor.href = url;
   anchor.download = `${(data.build.nombre || 'build').replace(/[^a-z0-9-_]+/gi, '_')}.json`;
   anchor.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   saveState.textContent = 'Build exportada.';
 }
 
@@ -281,17 +393,17 @@ async function importarBuild(file) {
 
   try {
     const data = JSON.parse(await file.text());
-    const incoming = data.build ?? data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('El archivo JSON debe contener un objeto.');
+    }
 
-    if (!incoming.equipamiento || typeof incoming.equipamiento !== 'object') {
+    const incoming = data.build ?? data;
+    const normalizada = normalizarBuild(incoming);
+    if (!normalizada) {
       throw new Error('El archivo no contiene un equipamiento válido.');
     }
 
-    cargarBuildGuardada({
-      nombre: incoming.nombre ?? 'Build importada',
-      equipamiento: incoming.equipamiento,
-      atributos: incoming.atributos
-    });
+    cargarBuildGuardada(normalizada);
     saveState.textContent = 'Build importada correctamente.';
   } catch (error) {
     saveState.textContent = `No se pudo importar: ${error.message}`;

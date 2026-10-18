@@ -130,6 +130,28 @@ input, select {
 input::placeholder { 
   color: #7f7867; 
 }
+
+.status-loading::before {
+  content: "";
+  display: inline-block;
+  width: .85em;
+  height: .85em;
+  margin-right: .55em;
+  vertical-align: -0.08em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: catalog-spin .7s linear infinite;
+}
+
+@keyframes catalog-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-loading::before { animation-duration: 1.8s; }
+}
+
 .status { 
   color: var(--muted); 
   font-size: .88rem; 

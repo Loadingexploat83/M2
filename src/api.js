@@ -2,6 +2,19 @@ const API_URL = 'https://eldenring.fanapis.com/api';
 const CACHE_PREFIX = 'eldenring-cache-';
 const CACHE_TIME = 1000 * 60 * 60;
 
+function cacheValida(cache) {
+  return Boolean(
+    cache &&
+    typeof cache === 'object' &&
+    !Array.isArray(cache) &&
+    Array.isArray(cache.datos) &&
+    cache.datos.every(item => item && typeof item === 'object' && !Array.isArray(item)) &&
+    Number.isFinite(cache.timestamp) &&
+    cache.timestamp <= Date.now() &&
+    Date.now() - cache.timestamp < CACHE_TIME
+  );
+}
+
 export async function obtenerLista(categoria) {
   const cacheKey = `${CACHE_PREFIX}${categoria}`;
 
@@ -9,16 +22,10 @@ export async function obtenerLista(categoria) {
     const raw = localStorage.getItem(cacheKey);
     if (raw) {
       const cache = JSON.parse(raw);
-      if (
-        Array.isArray(cache.datos) &&
-        Number.isFinite(cache.timestamp) &&
-        Date.now() - cache.timestamp < CACHE_TIME
-      ) {
-        return cache.datos;
-      }
+      if (cacheValida(cache)) return cache.datos;
     }
   } catch (error) {
-    console.warn('No se pudo leer la caché:', error);
+    console.warn('No se pudo leer o validar la caché:', error);
   }
 
   const todos = [];
@@ -42,11 +49,11 @@ export async function obtenerLista(categoria) {
       throw new Error('La API devolvió JSON no válido');
     }
 
-    if (!result || !Array.isArray(result.data)) {
+    if (!result || typeof result !== 'object' || !Array.isArray(result.data)) {
       throw new Error('La respuesta de la API no contiene un array data');
     }
 
-    todos.push(...result.data);
+    todos.push(...result.data.filter(item => item && typeof item === 'object' && !Array.isArray(item)));
     hasMore = result.data.length === limit;
     page += 1;
   }

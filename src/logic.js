@@ -10,7 +10,7 @@ function normalizarStats(stats) {
     .filter(stat => stat && typeof stat.name === 'string')
     .map(stat => ({
       name: stat.name,
-      amount: convertirNumero(stat.amount) ?? stat.amount ?? 0
+      amount: convertirNumero(stat.amount) ?? 0
     }));
 }
 
@@ -18,7 +18,7 @@ export function normalizarObjetos(datos) {
   if (!Array.isArray(datos)) return [];
 
   return datos
-    .filter(item => item && typeof item === 'object')
+    .filter(item => item && typeof item === 'object' && !Array.isArray(item))
     .map(item => ({
       id: item.id ?? item.name,
       nombre: typeof item.name === 'string' ? item.name.trim() : '',
@@ -33,8 +33,9 @@ export function normalizarObjetos(datos) {
       negacionDanio: normalizarStats(item.dmgNegation),
       resistencia: normalizarStats(item.resistance),
       escalado: Array.isArray(item.scalesWith)
-        ? item.scalesWith.filter(s => s && typeof s.name === 'string')
-            .map(s => ({ name: s.name, scaling: s.scaling }))
+        ? item.scalesWith
+            .filter(stat => stat && typeof stat.name === 'string')
+            .map(stat => ({ name: stat.name, scaling: stat.scaling }))
         : [],
       requisitos: normalizarStats(item.requiredAttributes),
       tipo: Array.isArray(item.dmgNegation) || Array.isArray(item.resistance)
@@ -47,45 +48,11 @@ export function normalizarObjetos(datos) {
 }
 
 export function filtrarObjetos(objetos, filtros = {}) {
-  const query = (filtros.busqueda ?? '').trim().toLocaleLowerCase();
-
-  return objetos.filter(item => {
-    if (query && !item.nombre.toLocaleLowerCase().includes(query)) return false;
-
-    if (filtros.pesoMin != null &&
-      (item.peso === null || item.peso < filtros.pesoMin)) return false;
-    if (filtros.pesoMax != null &&
-      (item.peso === null || item.peso > filtros.pesoMax)) return false;
-
-    if (filtros.tipoDanio) {
-      const found = item.ataque.some(s =>
-        s.name === filtros.tipoDanio && (convertirNumero(s.amount) ?? 0) > 0
-      );
-      if (!found) return false;
-    }
-
-    if (filtros.tipoDefensa) {
-      const stat = item.negacionDanio.find(s => s.name === filtros.tipoDefensa);
-      if (!stat) return false;
-      if (filtros.defensaMin != null &&
-        (convertirNumero(stat.amount) ?? -Infinity) < filtros.defensaMin) return false;
-    } else if (filtros.defensaMin != null &&
-      !item.negacionDanio.some(s => (convertirNumero(s.amount) ?? -Infinity) >= filtros.defensaMin)) {
-      return false;
-    }
-
-    if (filtros.tipoResistencia) {
-      const stat = item.resistencia.find(s => s.name === filtros.tipoResistencia);
-      if (!stat) return false;
-      if (filtros.resistenciaMin != null &&
-        (convertirNumero(stat.amount) ?? -Infinity) < filtros.resistenciaMin) return false;
-    } else if (filtros.resistenciaMin != null &&
-      !item.resistencia.some(s => (convertirNumero(s.amount) ?? -Infinity) >= filtros.resistenciaMin)) {
-      return false;
-    }
-
-    return true;
-  });
+  const query = String(filtros.busqueda ?? '').trim().toLocaleLowerCase('es');
+  if (!query) return objetos;
+  return objetos.filter(item =>
+    item.nombre.toLocaleLowerCase('es').includes(query)
+  );
 }
 
 export function ordenarObjetos(objetos, orden = 'name') {
@@ -96,49 +63,22 @@ export function ordenarObjetos(objetos, orden = 'name') {
   });
 }
 
-const RANGO_ESCALADO = { S: 6, A: 5, B: 4, C: 3, D: 2, E: 1 };
-
-export function obtenerEscalado(arma, estadistica) {
-  const stat = (arma.escalado ?? []).find(s => s.name === estadistica);
-  return RANGO_ESCALADO[String(stat?.scaling ?? '').toUpperCase()] ?? 0;
-}
-
-export function ordenarPorEscalado(armas, estadistica) {
-  return [...armas].sort((a, b) =>
-    obtenerEscalado(b, estadistica) - obtenerEscalado(a, estadistica) ||
-    a.nombre.localeCompare(b.nombre, 'es')
-  );
-}
-
-export function resumirObjetos(objetos) {
-  const pesos = objetos.map(o => o.peso).filter(n => n !== null);
-  const pesoMedio = pesos.length
-    ? pesos.reduce((sum, n) => sum + n, 0) / pesos.length
-    : null;
-
-  return {
-    total: objetos.length,
-    pesoMedio,
-    porCategoria: objetos.reduce((acc, o) => {
-      acc[o.categoria] = (acc[o.categoria] ?? 0) + 1;
-      return acc;
-    }, {})
-  };
-}
-
 export function resumirEquipamiento(equipamiento) {
   const piezas = Object.values(equipamiento).filter(Boolean);
-  const peso = piezas.reduce((sum, item) => sum + (item.peso ?? 0), 0);
-  const sumarStats = clave => {
-    const sumas = {};
-    piezas.forEach(item => {
-      (item[clave] ?? []).forEach(stat => {
-        const cantidad = convertirNumero(stat.amount);
-        if (cantidad !== null) sumas[stat.name] = (sumas[stat.name] ?? 0) + cantidad;
-      });
-    });
-    return sumas;
-  };
+  const peso = piezas.reduce((sum, item) => sum + (convertirNumero(item.peso) ?? 0), 0);
+
+  const sumarStats = clave => piezas.reduce((total, item) => {
+    const stats = Array.isArray(item[clave]) ? item[clave] : [];
+    return stats.reduce((sumas, stat) => {
+      if (!stat || typeof stat.name !== 'string') return sumas;
+      const cantidad = convertirNumero(stat.amount);
+      if (cantidad === null) return sumas;
+      return {
+        ...sumas,
+        [stat.name]: (sumas[stat.name] ?? 0) + cantidad
+      };
+    }, total);
+  }, {});
 
   return {
     peso,
@@ -158,11 +98,12 @@ export function comprobarRequisitos(arma, atributos) {
     Fai: 'Fe',
     Arc: 'Arcano'
   };
-  const faltantes = (arma.requisitos ?? [])
+  const faltantes = (Array.isArray(arma.requisitos) ? arma.requisitos : [])
+    .filter(req => req && typeof req.name === 'string')
     .map(req => ({
       nombre: nombres[req.name] ?? req.name,
       requerido: convertirNumero(req.amount),
-      actual: atributos[req.name] ?? 0
+      actual: convertirNumero(atributos?.[req.name]) ?? 0
     }))
     .filter(req => req.requerido !== null && req.actual < req.requerido);
 
